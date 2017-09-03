@@ -48,8 +48,14 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CholeskyTest.cs" />
+    <Compile Include="LUTest.cs" />
+    <Compile Include="MatrixMathTest.cs" />
+    <Compile Include="MatrixShapeTest.cs" />
     <Compile Include="MatrixTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="QRTest.cs" />
+    <Compile Include="VectorComparerTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -5,137 +5,62 @@ using System.Text;
 
 namespace JetBlack.Matrices
 {
-    public class Matrix : IEquatable<Matrix>
+    public class Matrix : IEquatable<Matrix>, IFormattable
     {
         private readonly double[,] _matrix;
+
+        public Matrix(int n)
+            : this(n, n)
+        {
+        }
+
+        public Matrix(int rows, int columns)
+            : this(new double[rows, columns])
+        {
+        }
 
         public Matrix(double[,] matrix)
         {
             if (matrix == null)
                 throw new ArgumentNullException(nameof(matrix));
-            if (matrix.GetLowerBound(0) != 0 || matrix.GetLowerBound(1) != 0)
-                throw new ArgumentException("Lower bound must be 0", nameof(matrix));
+            if (!(matrix.GetLowerBound(0) == 0 & matrix.GetLowerBound(1) == 0))
+                throw new ArgumentException("Bounds must start at 0");
+
             _matrix = matrix;
+            Rows = matrix.GetUpperBound(0) + 1;
+            Columns = matrix.GetUpperBound(1) + 1;
         }
 
-        public int Rows => 1 + _matrix.GetUpperBound(0);
-        public int Columns => 1 + _matrix.GetUpperBound(1);
+        public int Rows { get; }
+        public int Columns { get; }
 
-        public double this[int r, int c]
+        public double this[int row, int column]
         {
-            get => _matrix[r, c];
-            set => _matrix[r, c] = value;
+            get => _matrix[row, column];
+            set => _matrix[row, column] = value;
         }
 
-        public Matrix Add(Matrix other)
+        public static implicit operator Matrix(double[,] matrix)
         {
-            if (Rows != other.Rows || Columns != other.Columns)
-                throw new ArgumentException("Rows and columns must be the sa,e size");
-
-            var m = new Matrix(new double[Rows, Columns]);
-            for (int r = 0; r < Rows; ++r)
-                for (int c = 0; c < Columns; ++c)
-                    m[r, c] = _matrix[r, c] + other[r, c];
-            return m;
+            return new Matrix(matrix);
         }
 
-        public Matrix Subract(Matrix other)
+        public static implicit operator double[,] (Matrix matrix)
         {
-            if (Rows != other.Rows || Columns != other.Columns)
-                throw new ArgumentException("Rows and columns must be the sa,e size");
-
-            var m = new Matrix(new double[Rows, Columns]);
-            for (int r = 0; r < Rows; ++r)
-                for (int c = 0; c < Columns; ++c)
-                    m[r, c] = _matrix[r, c] - other[r, c];
-            return m;
-        }
-
-        public Matrix Negate()
-        {
-            var m = new Matrix(new double[Rows, Columns]);
-            for (int r = 0; r < Rows; ++r)
-                for (int c = 0; c < Columns; ++c)
-                    m[r, c] = -_matrix[r, c];
-            return m;
-        }
-
-        public Matrix Multiply(double x)
-        {
-            var m = new Matrix(new double[Rows, Columns]);
-            for (int r = 0; r < Rows; ++r)
-                for (int c = 0; c < Columns; ++c)
-                    m[r, c] = _matrix[r, c] * x;
-            return m;
-        }
-
-        public Matrix Divide(double x)
-        {
-            var m = new Matrix(new double[Rows, Columns]);
-            for (int r = 0; r < Rows; ++r)
-                for (int c = 0; c < Columns; ++c)
-                    m[r, c] = _matrix[r, c] / x;
-            return m;
-        }
-
-        public Matrix Multiply(Matrix other)
-        {
-            if (Rows != other.Columns || Columns != other.Rows)
-                throw new ArgumentException("Invalid shape");
-
-            var m = new Matrix(new double[Rows, other.Columns]);
-            for (int i = 0; i < other.Columns; ++i)
-            {
-                var sum = 0.0;
-                for (int j = 0; j < Rows; ++j)
-                {
-                    for (var k =0; k < Columns; ++k)
-                        m[i,j] += _matrix[i, j] * other[j, i];
-                }
-            }
-            return m;
-        }
-
-        public static implicit operator Matrix(double[,] value)
-        {
-            return new Matrix(value);
-        }
-
-        public static implicit operator double[,] (Matrix m)
-        {
-            return m._matrix;
-        }
-
-        public static Matrix operator *(Matrix m, double x)
-        {
-            return m.Multiply(x);
-        }
-
-        public static Matrix operator /(Matrix m, double x)
-        {
-            return m.Divide(x);
-        }
-
-        public static Matrix operator -(Matrix m)
-        {
-            return m.Negate();
-        }
-
-        public static Matrix operator -(Matrix a, Matrix b)
-        {
-            return a.Subract(b);
+            return matrix._matrix;
         }
 
         public bool Equals(Matrix other)
         {
-            return other != null &&
-                Rows == other.Rows &&
-                Columns == other.Columns &&
-                Enumerable.Range(0, Rows)
-                    .Select(r => Enumerable.Range(0, Columns)
-                        .Select(c => _matrix[r, c] == other[r, c]))
-                    .SelectMany(x => x)
-                    .All(x => x);
+            if (other == null || !(Rows == other.Rows && Columns == other.Columns))
+                return false;
+
+            for (int r = 0; r < Rows; ++r)
+                for (var c = 0; c < Columns; ++c)
+                    if (_matrix[r, c] != other[r, c])
+                        return false;
+
+            return true;
         }
 
         public override bool Equals(object obj)
@@ -145,28 +70,144 @@ namespace JetBlack.Matrices
 
         public override int GetHashCode()
         {
-            return Enumerable.Range(0, Rows)
-                    .Select(r => Enumerable.Range(0, Columns)
-                        .Select(c => _matrix[r, c]))
-                    .SelectMany(x => x)
-                    .Aggregate(0, (sum, value) => sum ^ value.GetHashCode());
+            return Enumerable.Range(0, Rows).Select(r => Enumerable.Range(0, Columns).Select(c => _matrix[r, c])).SelectMany(x => x).Aggregate(0, (hash, value) => hash ^= value.GetHashCode());
         }
+
+        public string ToString(string format)
+        {
+            return ToString(format, null);
+        }
+
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            //"G" is .Net's standard for general formatting--all
+            //types should support it
+            if (format == null) format = "G";
+
+            // is the user providing their own format provider?
+            if (formatProvider != null)
+            {
+                var formatter = formatProvider.GetFormat(GetType()) as ICustomFormatter;
+                if (formatter != null)
+                    return formatter.Format(format, this, formatProvider);
+            }
+
+            var sb = new StringBuilder();
+            sb.Append(this, x => x.ToString(format));
+            return sb.ToString();
+        }
+
 
         public override string ToString()
         {
-            var sb = new StringBuilder();
-            for (int r = 0; r < Rows; ++r)
-            {
-                sb.Append('[');
-                for (int c = 0; c < Columns; ++c)
-                {
-                    if (c > 0)
-                        sb.Append(", ");
-                    sb.Append(_matrix[r, c]);
-                }
-                sb.AppendLine("]");
-            }
-            return sb.ToString();
+            return ToString(null, null);
+        }
+
+        public static Matrix operator +(Matrix lhs, Matrix rhs)
+        {
+            return MatrixMath.Add(lhs, rhs);
+        }
+
+        public static Matrix operator -(Matrix lhs, Matrix rhs)
+        {
+            return MatrixMath.Subtract(lhs, rhs);
+        }
+
+        public static Matrix operator -(Matrix value)
+        {
+            return MatrixMath.Negate(value);
+        }
+
+        public static Matrix operator *(Matrix lhs, Matrix rhs)
+        {
+            return MatrixMath.Multiply(lhs, rhs);
+        }
+
+        public static Matrix operator *(double lhs, Matrix rhs)
+        {
+            return MatrixMath.Multiply(lhs, rhs);
+        }
+
+        public static Vector operator *(Matrix lhs, Vector rhs)
+        {
+            return MatrixMath.Multiply(lhs, rhs);
+        }
+
+        public static double Dot(double[] v, double[] w)
+        {
+            if (v.Length == 0 || v.Length != w.Length)
+                throw new ArgumentException("Vectors must be of the same length.");
+
+            double buf = 0;
+
+            for (var i = 0; i < v.Length; ++i)
+                buf += v[i] * w[i];
+
+            return buf;
+        }
+
+        public double[] Row(int row)
+        {
+            return Row(row, 0, Columns);
+        }
+
+        public double[] Row(int row, int offset, int count)
+        {
+            var v = new double[count];
+            for (var i = 0; i < count; ++i)
+                v[i] = _matrix[row, i + offset];
+            return v;
+        }
+
+        public double[] Column(int column)
+        {
+            return Column(column, 0, Rows);
+        }
+
+        public double[] Column(int column, int offset, int count)
+        {
+            var v = new double[count];
+            for (var i = 0; i < count; ++i)
+                v[i] = _matrix[i + offset, column];
+            return v;
+        }
+
+        /// <summary>
+        /// Creates n by n identity matrix.
+        /// </summary>
+        /// <param name="n">Number of rows and columns respectively.</param>
+        /// <returns>n by n identity matrix.</returns>
+        public static Matrix Identity(int n)
+        {
+            return Diag(Ones(n));
+        }
+
+        public static double[] Ones(int n)
+        {
+            var v = new double[n];
+
+            for (int i = 0; i < n; ++i)
+                v[i] = 1;
+
+            return v;
+        }
+
+        /// <summary>
+        /// Generates diagonal matrix
+        /// </summary>
+        /// <param name="v">column vector containing the diag elements</param>
+        /// <returns></returns>
+        public static Matrix Diag(double[] v)
+        {
+            if (v.Length == 0)
+                throw new ArgumentException("vector must be 1xN or Nx1");
+
+            var matrix = new Matrix(new double[v.Length, v.Length]);
+
+            for (int i = 0; i < v.Length; ++i)
+                matrix[i, i] = v[i];
+
+            return matrix;
         }
     }
 }
